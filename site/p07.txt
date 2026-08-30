@@ -1,0 +1,575 @@
+=> showScene('treeScene'), 700 + sceneDurations.titleScene);
+  later(() => showScene('photoScene'), 700 + sceneDurations.titleScene + sceneDurations.treeScene);
+}
+document.getElementById('startBtn').addEventListener('click', startSequence, {once:true});
+
+// The photo is now an intentional pause: click the photo to enter the galaxy.
+const transitionPhoto = document.querySelector('#photoScene .photo-card');
+transitionPhoto.addEventListener('click', () => {
+  const scene = document.getElementById('photoScene');
+  if(!scene.classList.contains('active') || scene.classList.contains('going')) return;
+  scene.classList.remove('waiting');
+  scene.classList.add('going');
+  setTimeout(() => showScene('galaxyScene'), 650);
+}, {once:true});
+
+document.getElementById('replayBtn').addEventListener('click', () => location.reload());
+
+// Build the flower canopy exactly as a heart: bloom starts at the trunk junction,
+// then spreads outward and upward until the whole heart is filled.
+(function makeHeartBloom(){
+  const group = document.getElementById('heartFlowers');
+  const path = document.getElementById('canopyPath');
+  const NS = 'http://www.w3.org/2000/svg';
+  let seed = 2092009;
+  const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+  const colors = ['#ff91b8','#ff6fa5','#f94d8e','#ffb6cf','#ff7fb0','#f53f83'];
+
+  function addFlower(cx,cy,size,delay,color){
+    const g=document.createElementNS(NS,'g');
+    g.setAttribute('transform',`translate(${cx.toFixed(1)} ${cy.toFixed(1)})`);
+    const inner=document.createElementNS(NS,'g');
+    inner.setAttribute('class','flower-bloom');
+    inner.style.setProperty('--d',delay.toFixed(2)+'s');
+    inner.style.color=color;
+    const u=document.createElementNS(NS,'use');
+    u.setAttribute('href','#flowerShape');
+    u.setAttribute('transform',`scale(${(size/12).toFixed(3)})`);
+    inner.appendChild(u); g.appendChild(inner); group.appendChild(g);
+  }
+
+  // Sample the exact SVG heart path into a polygon. Every interior flower is
+  // tested against this same outline, so the fill and edge can no longer disagree.
+  const L = path.getTotalLength();
+  const poly=[];
+  for(let i=0;i<360;i++){
+    const p=path.getPointAtLength(L*i/360);
+    poly.push([p.x,p.y]);
+  }
+  function inside(px,py){
+    let c=false;
+    for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+      const xi=poly[i][0], yi=poly[i][1], xj=poly[j][0], yj=poly[j][1];
+      if(((yi>py)!=(yj>py)) && (px < (xj-xi)*(py-yi)/(yj-yi)+xi)) c=!c;
+    }
+    return c;
+  }
+
+  // Small, dense flowers on a staggered grid. This preserves the large heart
+  // but makes the silhouette much cleaner and prevents empty patches.
+  let row=0;
+  for(let cy=101; cy<=350; cy+=10.5,row++){
+    const off=(row%2)*5.2;
+    for(let cx=512+off; cx<=788; cx+=10.4){
+      const jx=(rnd()-.5)*3.3, jy=(rnd()-.5)*3.0;
+      const x=cx+jx, y=cy+jy;
+      if(!inside(x,y)) continue;
+      // Keep a small safety margin near the edge; the edge flowers below cover it cleanly.
+      const dx=(x-650)/155, dy=(y-330)/240;
+      const wave=Math.sqrt(dx*dx+dy*dy);
+      const delay=1.52 + Math.min(1.45,wave*.98) + rnd()*.10;
+      addFlower(x,y,5.6+rnd()*2.7,delay,colors[Math.floor(rnd()*colors.length)]);
+    }
+  }
+
+  // Outline flowers follow the exact Bezier heart, producing a clearly visible
+  // top cleft and pointed bottom like the reference video.
+  const edgeN=148;
+  for(let i=0;i<edgeN;i++){
+    const p=path.getPointAtLength(L*i/edgeN);
+    const dx=(p.x-650)/155, dy=(p.y-330)/240;
+    const wave=Math.sqrt(dx*dx+dy*dy);
+    const delay=1.48 + Math.min(1.38,wave*.94) + (i%5)*.01;
+    addFlower(p.x,p.y,6.1+(i%3)*.5,delay,colors[i%colors.length]);
+  }
+
+  // Densify the top notch and sharp bottom point so the heart reads instantly.
+  const accents=[[635,129],[642,134],[650,140],[658,134],[665,129],
+                 [640,343],[646,350],[650,357],[654,350],[660,343]];
+  accents.forEach((p,i)=>addFlower(p[0],p[1],6.0+(i%2)*.5,2.15+i*.025,colors[(i+2)%colors.length]));
+})();
+
+// Only a few soft sparkles; no heavy particle canvas in this scene.
+(function makeTreeSpecks(){
+  const layer=document.getElementById('treeSpecks');
+  for(let i=0;i<10;i++){
+    const s=document.createElement('span'); s.className='tree-speck';
+    s.style.left=(50+Math.random()*30)+'%'; s.style.top=(14+Math.random()*30)+'%';
+    s.style.setProperty('--sd',(1.8+Math.random()*1.2).toFixed(2)+'s');
+    layer.appendChild(s);
+  }
+})();
+
+// ==================== WEBGL GALAXY — CODE ONLY ====================
+const WG={
+  active:false,paused:false,raf:0,start:0,effectStart:0,
+  scene:null,canvas:null,fx:null,fctx:null,gl:null,program:null,
+  loc:{},buffers:{},counts:{},
+  orbitLayer:null,labelLayer:null,entry:null,
+  w:0,h:0,dpr:1,
+  galaxyMix:0,heartMix:0,
+  photoItems:[],labels:[],bgScreen:[],
+  cardTimer1:0,cardTimer2:0
+};
+
+function wClamp(v,a,b){return Math.max(a,Math.min(b,v))}
+function wSmooth(t){t=wClamp(t,0,1);return t*t*(3-2*t)}
+function wEase(t){t=wClamp(t,0,1);return 1-Math.pow(1-t,3)}
+function wRand(a,b){return a+Math.random()*(b-a)}
+
+function m4Identity(){
+  return new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1])
+}
+function m4Mul(a,b){
+  const o=new Float32Array(16)
+  for(let c=0;c<4;c++)for(let r=0;r<4;r++){
+    o[c*4+r]=a[0*4+r]*b[c*4+0]+a[1*4+r]*b[c*4+1]+a[2*4+r]*b[c*4+2]+a[3*4+r]*b[c*4+3]
+  }
+  return o
+}
+function m4Perspective(fovy,aspect,near,far){
+  const f=1/Math.tan(fovy/2),nf=1/(near-far)
+  return new Float32Array([
+    f/aspect,0,0,0,
+    0,f,0,0,
+    0,0,(far+near)*nf,-1,
+    0,0,(2*far*near)*nf,0
+  ])
+}
+function v3Norm(v){
+  const l=Math.hypot(v[0],v[1],v[2])||1
+  return [v[0]/l,v[1]/l,v[2]/l]
+}
+function v3Cross(a,b){
+  return [a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]]
+}
+function m4LookAt(eye,target,up){
+  const z=v3Norm([eye[0]-target[0],eye[1]-target[1],eye[2]-target[2]])
+  const x=v3Norm(v3Cross(up,z))
+  const y=v3Cross(z,x)
+  return new Float32Array([
+    x[0],y[0],z[0],0,
+    x[1],y[1],z[1],0,
+    x[2],y[2],z[2],0,
+    -(x[0]*eye[0]+x[1]*eye[1]+x[2]*eye[2]),
+    -(y[0]*eye[0]+y[1]*eye[1]+y[2]*eye[2]),
+    -(z[0]*eye[0]+z[1]*eye[1]+z[2]*eye[2]),1
+  ])
+}
+function m4RotY(a){
+  const c=Math.cos(a),s=Math.sin(a)
+  return new Float32Array([
+    c,0,-s,0,
+    0,1,0,0,
+    s,0,c,0,
+    0,0,0,1
+  ])
+}
+function v4Mul(m,v){
+  return [
+    m[0]*v[0]+m[4]*v[1]+m[8]*v[2]+m[12]*v[3],
+    m[1]*v[0]+m[5]*v[1]+m[9]*v[2]+m[13]*v[3],
+    m[2]*v[0]+m[6]*v[1]+m[10]*v[2]+m[14]*v[3],
+    m[3]*v[0]+m[7]*v[1]+m[11]*v[2]+m[15]*v[3]
+  ]
+}
+
+function compile(gl,type,src){
+  const sh=gl.createShader(type);gl.shaderSource(sh,src);gl.compileShader(sh)
+  if(!gl.getShaderParameter(sh,gl.COMPILE_STATUS))throw new Error(gl.getShaderInfoLog(sh))
+  return sh
+}
+function makeProgram(gl){
+  const vs=compile(gl,gl.VERTEX_SHADER,`
+    precision highp float;
+
+    attribute vec3 aStart;
+    attribute vec3 aEnd;
+    attribute vec3 aColor;
+    attribute float aSize;
+
+    uniform mat4 uMVP;
+    uniform float uMix;
+    uniform float uAlpha;
+    uniform float uPointScale;
+    uniform float uTime;
+    uniform float uMode;
+
+    varying vec3 vColor;
+    varying float vAlpha;
+
+    float hash21(vec2 p){
+      return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453123);
+    }
+
+    void main(){
+      float appear=uMix*uMix*(3.0-2.0*uMix);
+      vec3 target=aEnd;
+      float seed=hash21(aEnd.xz + vec2(aEnd.y*7.13,aEnd.y*2.71));
+
+      // ------------------------------------------------------------
+      // MODE 1 = GALAXY
+      // Each particle moves ALONG an Archimedean spiral arm:
+      // radius changes continuously and angle is recalculated FROM
+      // that radius. This is not "the whole disk rotating".
+      // ------------------------------------------------------------
+      if(uMode > 0.5 && uMode < 1.5){
+        float maxR=3.72;
+        float k=3.08;
+
+        float r0=max(0.06,length(aEnd.xz));
+        float theta0=atan(aEnd.z,aEnd.x);
+
+        // Recover each particle's arm phase from its original spiral.
+        float armPhase=theta0-k*r0;
+
+        // Different particles move at slightly different speeds,
+        // but all stay on their own spiral stream.
+        float speed=0.115 + seed*0.060;
+        float travelled=mod(uTime*speed + seed*0.030,maxR);
+
+        // Flow INWARD; once a particle reaches the core it re-enters
+        // from the outer part of the same spiral stream.
+        float rr=mod(r0-travelled+maxR,maxR);
+        rr=max(rr,0.055);
+
+        // Radius -> angle relationship is what creates real spiral motion.
+        float theta=armPhase+k*rr;
+
+        // Very small stream-width wobble only; keep arm gaps readable.
+        float streamOffset=(seed-.5)*0.055;
+        rr+=streamOffset;
+
+        target.x=cos(theta)*rr;
+        target.z=sin(theta)*rr;
+        target.y=aEnd.y + 0.014*sin(uTime*(.55+seed*.25)+seed*18.0);
+      }
+
+      vec3 p=mix(aStart,target,appear);
+      vec4 clip=uMVP*vec4(p,1.0);
+      gl_Position=clip;
+
+      float pers=clamp(3.5/max(.7,clip.w),.42,2.75);
+      float twinkle=1.0;
+      float sizePulse=1.0;
+
+      // ------------------------------------------------------------
+      // MODE 2 = HEART
+      // Dense heart, but individual particles have different clocks.
+      // Most particles go almost completely dark during their cycle.
+      // A smaller subset remains faint to preserve the heart shape.
+      // ------------------------------------------------------------
+      if(uMode > 1.5 && uMode < 2.5){
+        float rate=.75 + seed*3.65;
+        float wave=.5+.5*sin(uTime*rate + seed*25.1327);
+        float flash=pow(wave,7.0);
+
+        if(seed < .30){
+          // persistent faint "body" particles
+          twinkle=.30 + .52*wave;
+        }else{
+          // true off -> bright -> off sparkle
+          twinkle=.015 + 1.12*flash;
+        }
+
+        // occasional stronger sparkling points
+        float rare=step(.90,seed);
+        sizePulse=1.0 + rare*flash*.55;
+      }
+      // ------------------------------------------------------------
+      // MODE 3 = BACKGROUND / HALO
+      // slow, subtle independent twinkle
+      // ------------------------------------------------------------
+      else if(uMode > 2.5){
+        float wave=.5+.5*sin(uTime*(.38+seed*.95)+seed*18.85);
+        twinkle=.18 + .58*wave;
+      }
+      // Galaxy shimmer stays subtle so arm motion remains readable.
+      else if(uMode > .5){
+        float wave=.5+.5*sin(uTime*(.42+seed*.45)+seed*12.56);
+        twinkle=.78 + .22*wave;
+      }
+
+      gl_PointSize=aSize*uPointScale*pers*sizePulse;
+      vColor=aColor;
+      vAlpha=uAlpha*twinkle;
+    }
+  `);
+
+  const fs=compile(gl,gl.FRAGMENT_SHADER,`
+    precision mediump float;
+    varying vec3 vColor;
+    varying float vAlpha;
+
+    void main(){
+      vec2 q=gl_PointCoord-vec2(.5);
+      float d=length(q);
+      if(d>.5)discard;
+
+      float soft=smoothstep(.5,.07,d);
+      float core=smoothstep(.20,0.0,d);
+      float alpha=(soft*.60+core*.92)*vAlpha;
+
+      gl_FragColor=vec4(vColor,alpha);
+    }
+  `);
+
+  const p=gl.createProgram();
+  gl.attachShader(p,vs);
+  gl.attachShader(p,fs);
+  gl.linkProgram(p);
+
+  if(!gl.getProgramParameter(p,gl.LINK_STATUS)){
+    throw new Error(gl.getProgramInfoLog(p));
+  }
+  return p;
+}
+
+function createParticleBuffer(name,starts,ends,colors,sizes){
+  const gl=WG.gl
+  const pack=(arr,item)=>{const b=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,b);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(arr),gl.STATIC_DRAW);WG.buffers[name+item]=b}
+  pack(starts,'Start');pack(ends,'End');pack(colors,'Color');pack(sizes,'Size')
+  WG.counts[name]=sizes.length
+}
+function bindParticleBuffer(name){
+  const gl=WG.gl,l=WG.loc
+  const bind=(buf,loc,size)=>{
+    gl.bindBuffer(gl.ARRAY_BUFFER,WG.buffers[buf])
+    gl.enableVertexAttribArray(loc)
+    gl.vertexAttribPointer(loc,size,gl.FLOAT,false,0,0)
+  }
+  bind(name+'Start',l.aStart,3)
+  bind(name+'End',l.aEnd,3)
+  bind(name+'Color',l.aColor,3)
+  bind(name+'Size',l.aSize,1)
+}
+
+function buildGalaxyParticles(){
+  const starts=[],ends=[],cols=[],sizes=[];
+
+  const arms=5;
+  const maxR=3.72;
+  const spiralK=3.08;
+
+  // Main visible spiral streams.
+  // Most of the particles live very close to the mathematical arm.
+  for(let arm=0;arm<arms;arm++){
+    const armPhase=arm*Math.PI*2/arms;
+
+    for(let i=0;i<1750;i++){
+      const u=i/1749;
+      const r=.10 + Math.pow(u,.82)*(maxR-.10);
+
+      // Narrow stream width preserves the dark space between arms.
+      const jitter=wRand(-.040,.040);
+      const theta=armPhase + spiralK*r + jitter;
+
+      const x=Math.cos(theta)*r;
+      const z=Math.sin(theta)*r;
+      const y=wRand(-.026,.026)*(1-r/maxR);
+
+      starts.push(
+        wRand(-6.0,6.0),
+        wRand(-.7,4.7),
+        wRand(-6.0,6.0)
+      );
+      ends.push(x,y,z);
+
+      const core=1-r/maxR;
+      const bright=core>.72 ? 1.0 : .82;
+
+      cols.push(
+        1.0,
+        .20 + core*.62,
+        .49 + core*.42
+      );
+
+      sizes.push(wRand(1.25,2.75)*(0.78+core*.50)*bright);
+    }
+
+    // Thin soft skirt around each arm, still following the same spiral.
+    for(let i=0;i<520;i++){
+      const r=wRand(.28,maxR);
+      const theta=armPhase + spiralK*r + wRand(-.12,.12);
+
+      starts.push(
+        wRand(-6.2,6.2),
+        wRand(-.8,4.8),
+        wRand(-6.2,6.2)
+      );
+      ends.push(
+        Math.cos(theta)*r,
+        wRand(-.035,.035),
+        Math.sin(theta)*r
+      );
+
+      const core=1-r/maxR;
+      cols.push(1.0,.15+core*.45,.39+core*.35);
+      sizes.push(wRand(.65,1.35));
+    }
+  }
+
+  // Compact luminous core only — no big circular rings.
+  for(let i=0;i<1150;i++){
+    const r=Math.pow(Math.random(),1.65)*.66;
+    const a=Math.random()*Math.PI*2;
+
+    starts.push(wRand(-2,2),wRand(-.4,2.8),wRand(-2,2));
+    ends.push(
+      Math.cos(a)*r,
+      wRand(-.012,.012),
+      Math.sin(a)*r
+    );
+
+    const core=1-r/.66;
+    cols.push(1.0,.56+core*.34,.76+core*.22);
+    sizes.push(wRand(1.7,3.8)*(1+core*.28));
+  }
+
+  createParticleBuffer('galaxy',starts,ends,cols,sizes);
+}
+
+function buildHeartParticles(){
+  const starts=[],ends=[],cols=[],sizes=[];
+  const edgeStarts=[],edgeEnds=[],edgeCols=[],edgeSizes=[];
+
+  // Dedicated crisp outline layer.
+  for(let i=0;i<1200;i++){
+    const t=i/1200*Math.PI*2;
+    const hx=16*Math.pow(Math.sin(t),3);
+    const hy=13*Math.cos(t)-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t);
+
+    for(let layer=0;layer<5;layer++){
+      edgeStarts.push(
+        wRand(-.055,.055),
+        wRand(-.015,.10),
+        wRand(-.055,.055)
+      );
+      edgeEnds.push(
+        hx*.103 + wRand(-.010,.010),
+        2.02 + hy*.093 + wRand(-.010,.010),
+        wRand(-.055,.055)
+      );
+      edgeCols.push(1.0,wRand(.62,.80),wRand(.84,.98));
+      edgeSizes.push(wRand(1.30,2.65));
+    }
+  }
+
+  // Extremely dense interior.
+  let made=0;
+  while(made<30000){
+    const x=wRand(-1.18,1.18);
+    const y=wRand(-1.06,1.06);
+
+    const q=x*x+y*y-1;
+    if(q*q*q-x*x*y*y*y>0)continue;
+
+    starts.push(
+      wRand(-.055,.055),
+      wRand(-.012,.085),
+      wRand(-.055,.055)
+    );
+
+    ends.push(
+      x*1.39,
+      2.02+y*1.25,
+      wRand(-.075,.075)
+    );
+
+    const bright=Math.random();
+    if(bright>.90){
+      cols.push(1.0,wRand(.58,.82),wRand(.82,.99));
+      sizes.push(wRand(1.05,2.05));
+    }else{
+      cols.push(1.0,wRand(.28,.52),wRand(.62,.88));
+      sizes.push(wRand(.45,1.20));
+    }
+    made++;
+  }
+
+  createParticleBuffer('heart',starts,ends,cols,sizes);
+  createParticleBuffer('heartEdge',edgeStarts,edgeEnds,edgeCols,edgeSizes);
+}
+
+function buildStars(){
+  const starts=[],ends=[],cols=[],sizes=[];
+
+  // A sparse screen-wide 3D particle field placed where the camera can see it.
+  for(let i=0;i<34000;i++){
+    const x=wRand(-5.8,5.8);
+    const y=wRand(-.35,5.4);
+    const z=wRand(-2.9,2.5);
+
+    starts.push(x,y,z);
+    ends.push(x,y,z);
+
+    if(Math.random()<.38){
+      cols.push(1.0,wRand(.30,.55),wRand(.55,.82));
+    }else{
+      const b=wRand(.65,1.0);
+      cols.push(b,b,b);
+    }
+
+    sizes.push(wRand(.48,1.42));
+  }
+
+  // Dedicated thin halo surrounding (but mostly outside) the heart,
+  // so the heart never sits inside an empty black patch.
+  let made=0;
+  while(made<28000){
+    const x=wRand(-2.35,2.35);
+    const y=wRand(.55,3.60);
+
+    // local heart coordinate for exclusion test
+    const hx=x/1.37;
+    const hy=(y-2.02)/1.23;
+    const q=hx*hx+hy*hy-1;
+    const inside=(q*q*q-hx*hx*hy*hy*hy)<=0;
+
+    // keep the halo primarily OUTSIDE the dense heart
+    if(inside)continue;
+
+    const dist=Math.hypot(x,(y-2.02)*.82);
+    if(dist>2.55)continue;
+
+    const z=wRand(-.42,.42);
+
+    starts.push(x,y,z);
+    ends.push(x,y,z);
+    cols.push(1.0,wRand(.22,.44),wRand(.48,.72));
+    sizes.push(wRand(.45,1.22));
+
+    made++;
+  }
+
+  createParticleBuffer('stars',starts,ends,cols,sizes);
+}
+
+function initWebGLGalaxy(){
+  WG.scene=document.getElementById('galaxyScene')
+  WG.canvas=document.getElementById('galaxyCanvas')
+  WG.fx=document.getElementById('galaxyFx')
+  WG.fctx=WG.fx.getContext('2d')
+  WG.entry=document.getElementById('gEntry')
+  WG.orbitLayer=document.getElementById('orbitLayer')
+  WG.labelLayer=document.getElementById('labelLayer')
+  const gl=WG.canvas.getContext('webgl',{alpha:true,antialias:true,premultipliedAlpha:false})
+  if(!gl)throw new Error('WebGL không khả dụng')
+  WG.gl=gl;WG.program=makeProgram(gl);gl.useProgram(WG.program)
+  WG.loc={
+    aStart:gl.getAttribLocation(WG.program,'aStart'),
+    aEnd:gl.getAttribLocation(WG.program,'aEnd'),
+    aColor:gl.getAttribLocation(WG.program,'aColor'),
+    aSize:gl.getAttribLocation(WG.program,'aSize'),
+    uMVP:gl.getUniformLocation(WG.program,'uMVP'),
+    uMix:gl.getUniformLocation(WG.program,'uMix'),
+    uAlpha:gl.getUniformLocation(WG.program,'uAlpha'),
+    uPointScale:gl.getUniformLocation(WG.program,'uPointScale'),
+    uTime:gl.getUniformLocation(WG.program,'uTime'),
+    uMode:gl.getUniformLocation(WG.program,'uMode')
+  }
+  gl.enable(gl.BLEND)
+  gl.blendFunc(gl.SRC_ALPHA,gl.ONE)
+  gl.disable(gl.DEPTH_TEST)
+
+  b
