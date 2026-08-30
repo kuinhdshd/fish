@@ -1,0 +1,46 @@
+6+4/0T1mkdpcBM4DdB7i4RuK0j/EF9YD+5loHc3iZWR0xThJpCHgeZ6jZSYvc4My0YWPkl6Iak2Z/nF4u4aD6nDeguKwOMy1rbhY2QFlYHqd1SPiZ5GmcfqYvAapNt8TFTweHUOiLG41GB5eIR3FYE2XuKBhZrLw+ILX1LF1DXack+pIhGIVe+yWYRaRU1HIPqXU6JgjweLhLS6hXaly4vLthGc0zOeZg5ny5iyLi0uKic+RDo05rmVAphXczFZUKzXcdkKc+F4yxWU45m5iyN8zS+vB4ZgO58Z//9k='
+];
+const scenes = ['intro','titleScene','treeScene','photoScene','galaxyScene'].map(id => document.getElementById(id));
+const sceneDurations = { titleScene: 2200, treeScene: 5300, photoScene: 3200 };
+let timers = [];
+function clearTimers(){ timers.forEach(clearTimeout); timers = []; }
+function showScene(id){
+  scenes.forEach(sc => {
+    const on = sc.id === id;
+    sc.classList.toggle('active', on);
+    sc.classList.remove('play');
+    if(on){
+      void sc.offsetWidth;
+      sc.classList.add('play');
+      if(id==='photoScene') sc.classList.add('waiting');
+    }else{
+      sc.classList.remove('waiting','going','ready');
+    }
+  });
+  setGalaxyRunning(id === 'galaxyScene');
+}
+function later(fn, ms){ const t = setTimeout(fn, ms); timers.push(t); return t; }
+function burst(cx, cy){
+  for(let i=0;i<28;i++){
+    const s = document.createElement('i'); s.className='spark';
+    document.body.appendChild(s);
+    const a = Math.random() * Math.PI * 2;
+    const d = 45 + Math.random() * 120;
+    const size = 3 + Math.random() * 5;
+    s.style.width = s.style.height = size + 'px';
+    s.style.left = cx + 'px';
+    s.style.top = cy + 'px';
+    s.animate([
+      {transform:'translate(-50%,-50%) scale(1)', opacity:1},
+      {transform:`translate(${Math.cos(a)*d}px, ${Math.sin(a)*d}px) scale(.25)`, opacity:0}
+    ], {duration:650 + Math.random()*250, easing:'cubic-bezier(.2,.8,.25,1)'}).onfinish = () => s.remove();
+  }
+}
+function startSequence(){
+  clearTimers();
+  const btn = document.getElementById('startBtn');
+  btn.classList.add('clicked');
+  const r = btn.getBoundingClientRect();
+  burst(r.left + r.width/2, r.top + r.height/2);
+  later(() => showScene('titleScene'), 700);
+  later(() 
