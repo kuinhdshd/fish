@@ -1,0 +1,74 @@
+mes fadeFlash{0%{opacity:0}35%{opacity:1}100%{opacity:0}}
+
+@media (max-width:640px){
+  .memory{width:74px;height:100px}
+  .photo-card{width:min(90vw,480px)}
+  .tree-note{left:5vw;bottom:12vh}
+  .big-hb{font-size:clamp(52px,15vw,90px)}
+}
+</style>
+</head>
+<body>
+
+<section id="intro" class="scene active">
+  <div class="soft-noise"></div>
+  <div class="intro-top">Interactive <b>Birthday</b> Gift</div>
+  <div class="intro-wrap">
+    <button class="heart-btn" id="startBtn" aria-label="Bắt đầu">
+      <div class="heart-shell"><div class="shine"></div></div>
+    </button>
+    <div class="tap-text">chạm vào trái tim</div>
+  </div>
+  <div class="intro-name">FOR VÕ THỊ THANH TRUYỀN</div>
+</section>
+
+<section id="titleScene" class="scene">
+  <div class="title-wrap">
+    <div class="title-card">
+      <div class="big-hb"><span>Happy</span><span>Birthday</span></div>
+      <div class="sub-line">02 • 09 • 2009 — Sweet Seventeen</div>
+    </div>
+  </div>
+  <div class="flash"></div>
+</section>
+
+<section id="treeScene" class="scene">
+  <div class="tree-glow"></div>
+  <svg class="tree-svg" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid slice" aria-label="Cây hoa nở thành trái tim">
+    <defs>
+      <g id="flowerShape">
+        <ellipse cx="0" cy="-6.3" rx="4.8" ry="6.5" fill="currentColor"/>
+        <ellipse cx="6.0" cy="-1.5" rx="4.8" ry="6.4" transform="rotate(70 6 -1.5)" fill="currentColor"/>
+        <ellipse cx="3.8" cy="5.0" rx="4.6" ry="6.1" transform="rotate(145 3.8 5)" fill="currentColor"/>
+        <ellipse cx="-3.8" cy="5.0" rx="4.6" ry="6.1" transform="rotate(-145 -3.8 5)" fill="currentColor"/>
+        <ellipse cx="-6.0" cy="-1.5" rx="4.8" ry="6.4" transform="rotate(-70 -6 -1.5)" fill="currentColor"/>
+        <circle cx="0" cy="0" r="2.15" fill="#fff2b7"/>
+      </g>
+    </defs>
+    <!-- Form trái tim chuẩn: lõm sâu ở đỉnh, hai bầu tim tròn và đáy nhọn. -->
+    <path id="canopyPath" d="M650 360 C620 334 505 270 505 184 C505 126 545 92 590 92 C620 92 642 112 650 138 C658 112 680 92 710 92 C755 92 795 126 795 184 C795 270 680 334 650 360 Z" fill="none" stroke="none"/>
+    <!-- thân cây mọc trước, rồi các nhánh tỏa ra như video mẫu -->
+    <path class="branch trunk" d="M650 635 C650 585 650 541 650 500 C650 453 650 406 650 361 C650 343 650 329 650 315"/>
+    <path class="branch main b1" d="M650 318 C620 294 590 278 560 264 C546 257 536 247 530 235"/>
+    <path class="branch main b2" d="M650 317 C677 291 702 274 727 258 C744 247 758 232 768 214"/>
+    <path class="branch main b3" d="M650 315 C650 282 650 253 650 226 C650 205 650 186 650 166"/>
+    <path class="branch twig" style="--bd:1.05s" d="M558 267 C546 257 537 246 531 235"/>
+    <path class="branch twig" style="--bd:1.12s" d="M548 258 C536 251 527 244 521 236"/>
+    <path class="branch twig" style="--bd:1.16s" d="M592 290 C578 273 570 254 566 236"/>
+    <path class="branch twig" style="--bd:1.20s" d="M665 276 C676 255 682 237 684 220"/>
+    <path class="branch twig" style="--bd:1.25s" d="M697 254 C717 247 733 237 745 225"/>
+    <path class="branch twig" style="--bd:1.30s" d="M729 241 C746 238 758 231 766 221"/>
+    <path class="branch twig" style="--bd:1.25s" d="M610 244 C598 232 590 220 585 208"/>
+    <path class="branch twig" style="--bd:1.31s" d="M621 225 C632 213 641 198 646 184"/>
+    <g id="heartFlowers"></g>
+  </svg>
+  <div id="treeSpecks"></div>
+  <div class="tree-note">
+    <div class="script">Happy Birthday</div>
+    <div class="small">02 • 09 • 2009</div>
+  </div>
+</section>
+
+<section id="photoScene" class="scene">
+  <div class="photo-bg"></div>
+  <div class="photo-card"><img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABMNDhEODBMRDxEVFBMXHTAfHRoaHToqLCMwRT1JR0Q9Q0FMVm1dTFFoUkFDX4JgaHF1e3x7SlyGkIV3j214e3b/2wBDARQVFR0ZHTgfHzh2T0NPdnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnb/wgARCAImAtADASIAAhEBAxEB/8QAGQABAQEBAQEAAAAAAAAAAAAAAQACAwQF/8QAFwEBAQEBAAAAAAAAAAAAAAAAAAECA//
