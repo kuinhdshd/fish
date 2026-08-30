@@ -17,38 +17,22 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#fff4f0;col
 <script>
 (async()=>{
   const files=[
-    'site/p00.txt','site/p01.txt','site/p02.txt','site/p03.txt','site/p04.txt','site/p05.txt',
+    'site/f00.txt','site/f01.txt','site/f02.txt','site/f03.txt','site/f04.txt','site/f05.txt','site/f06.txt',
+    'site/p03.txt','site/p04.txt','site/p05.txt',
     'site/p06_0.txt','site/p06_1.txt','site/p06_2.txt','site/p06_3.txt','site/p06_4.txt',
     'site/p07.txt','site/p08.txt'
   ];
   try{
     const chunks=[];
     for(const f of files){
-      const r=await fetch(f+'?v=2',{cache:'no-store'});
+      const r=await fetch(f+'?v=4',{cache:'no-store'});
       if(!r.ok) throw new Error('Không tải được '+f);
       chunks.push(await r.text());
     }
     const html=chunks.join('');
-    const parsed=new DOMParser().parseFromString(html,'text/html');
-    const headNodes=[...parsed.head.childNodes].map(n=>document.importNode(n,true));
-    const bodyNodes=[...parsed.body.childNodes].map(n=>document.importNode(n,true));
-    document.head.replaceChildren(...headNodes);
-    document.body.replaceChildren(...bodyNodes);
-    const scripts=[...document.querySelectorAll('script')];
-    for(const old of scripts){
-      const s=document.createElement('script');
-      for(const a of old.attributes) s.setAttribute(a.name,a.value);
-      if(old.src){
-        await new Promise((resolve,reject)=>{
-          s.onload=resolve;
-          s.onerror=reject;
-          old.replaceWith(s);
-        });
-      }else{
-        s.textContent=old.textContent;
-        old.replaceWith(s);
-      }
-    }
+    document.open();
+    document.write(html);
+    document.close();
   }catch(e){
     document.body.innerHTML='<div style="min-height:100vh;display:grid;place-items:center;padding:24px;text-align:center;background:#fff4f0;color:#a44f70;font-family:system-ui">Không tải được trang. Hãy tải lại sau vài giây.</div>';
     console.error(e);
