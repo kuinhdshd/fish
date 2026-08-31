@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Happy Birthday Thanh Truyền</title>
+<style>
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#fff4f0;color:#a44f70;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+#loading{position:fixed;inset:0;display:grid;place-items:center;text-align:center}
+#loading .heart{font-size:48px;color:#ff4d94;animation:p 1s ease-in-out infinite}
+#loading .txt{margin-top:10px;font-size:14px;opacity:.75}
+@keyframes p{50%{transform:scale(1.14)}}
+</style>
+</head>
+<body>
+<div id="loading"><div><div class="heart">♥</div><div class="txt">Đang mở món quà...</div></div></div>
+<script>
+(async()=>{
+  const files=[
+    'site/x00a.txt','site/x00b.txt','site/f01.txt','site/x02a.txt','site/x02b.txt','site/f03.txt','site/x04a.txt','site/x04b.txt','site/f05.txt','site/f06.txt',
+    'site/p03.txt','site/p04.txt','site/p05.txt',
+    'site/p06_0.txt','site/p06_1.txt','site/p06_2.txt','site/p06_3.txt','site/p06_4.txt',
+    'site/p07.txt','site/p08.txt'
+  ];
+  try{
+    const chunks=[];
+    for(const f of files){
+      const r=await fetch(f+'?photo_set=20260831_5new_v8',{cache:'no-store'});
+      if(!r.ok) throw new Error('Không tải được '+f);
+      chunks.push(await r.text());
+    }
+    const html=chunks.join('');
+    document.open();
+    document.write(html);
+    document.close();
+  }catch(e){
+    document.body.innerHTML='<div style="min-height:100vh;display:grid;place-items:center;padding:24px;text-align:center;background:#fff4f0;color:#a44f70;font-family:system-ui">Không tải được trang. Hãy tải lại sau vài giây.</div>';
+    console.error(e);
+  }
+})();
+</script>
+</body>
+</html>
