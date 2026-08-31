@@ -20,12 +20,12 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#fff4f0;col
     'site/x00a.txt','site/x00b.txt','site/f01.txt','site/x02a.txt','site/x02b.txt','site/f03.txt','site/x04a.txt','site/x04b.txt','site/f05.txt','site/f06.txt',
     'site/p03.txt','site/p04.txt','site/p05.txt',
     'site/p06_0.txt','site/p06_1.txt','site/p06_2.txt','site/p06_3.txt','site/p06_4.txt',
-    'site/p07.txt','site/p08.txt'
+    'site/p07.txt','site/p08.txt','site/music_hook.txt'
   ];
   try{
     const chunks=[];
     for(const f of files){
-      const r=await fetch(f+'?v=10',{cache:'no-store'});
+      const r=await fetch(f+'?v=11',{cache:'no-store'});
       if(!r.ok) throw new Error('Không tải được '+f);
       chunks.push(await r.text());
     }

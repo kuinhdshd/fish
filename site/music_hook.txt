@@ -1,0 +1,20 @@
+<script>
+(function(){
+  const music = new Audio('assets/birthday_music.mp3?v=1');
+  music.preload = 'auto';
+  music.loop = true;
+  music.volume = 0.82;
+  let started = false;
+  const originalStart = window.startSequence;
+  if (typeof originalStart === 'function') {
+    window.startSequence = function(){
+      if(!started){
+        music.currentTime = 0;
+        const p = music.play();
+        if(p && p.then) p.then(()=>{started=true;}).catch(()=>{});
+      }
+      return originalStart.apply(this, arguments);
+    };
+  }
+})();
+</script>
