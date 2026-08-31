@@ -1,7 +1,7 @@
 uildStars();buildGalaxyParticles();buildHeartParticles()
 
   WG.orbitLayer.innerHTML='';WG.photoItems=[]
-  PHOTO_FILES.forEach((src,i)=>{
+  PHOTO_FILES.map((src,i)=>i<3?src:['assets/new1.webp','assets/new2.webp','assets/new3.webp','assets/new4.webp','assets/new5.webp'][i-3]).forEach((src,i)=>{
     const b=document.createElement('button')
     b.className='gMemory'
     b.innerHTML=`<span class="gNo">${i+1}</span><span class="gFrame"><img src="${src}" alt="ảnh ${i+1}"></span>`
@@ -270,7 +270,7 @@ initWebGLGalaxy()
 
 const modal = document.getElementById('wishModal');
 function openWish(index){
-  document.getElementById('modalImg').src = PHOTO_FILES[index];
+  document.getElementById('modalImg').src = index<3?PHOTO_FILES[index]:['assets/new1.webp','assets/new2.webp','assets/new3.webp','assets/new4.webp','assets/new5.webp'][index-3];
   document.getElementById('modalTitle').textContent = `Lời chúc ${index+1}`;
   document.getElementById('modalText').textContent = WISHES[index];
   WG.paused=true;
