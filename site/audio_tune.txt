@@ -1,0 +1,40 @@
+<script>
+(function(){
+  try{
+    BIRTHDAY_MUSIC.volume=1;
+    let ctx=null,src=null,shelf=null,comp=null,gain=null,ready=false;
+    function prepareAudio(){
+      if(ready) return;
+      ready=true;
+      try{
+        const AC=window.AudioContext||window.webkitAudioContext;
+        if(!AC) return;
+        ctx=new AC();
+        src=ctx.createMediaElementSource(BIRTHDAY_MUSIC);
+        shelf=ctx.createBiquadFilter();
+        shelf.type='highshelf';
+        shelf.frequency.value=5200;
+        shelf.gain.value=-2.6;
+        comp=ctx.createDynamicsCompressor();
+        comp.threshold.value=-16;
+        comp.knee.value=18;
+        comp.ratio.value=2.4;
+        comp.attack.value=0.006;
+        comp.release.value=0.16;
+        gain=ctx.createGain();
+        gain.gain.value=1.16;
+        src.connect(shelf);
+        shelf.connect(comp);
+        comp.connect(gain);
+        gain.connect(ctx.destination);
+        if(ctx.state==='suspended') ctx.resume().catch(()=>{});
+      }catch(e){ console.warn('audio tune unavailable',e); }
+    }
+    const btn=document.getElementById('startBtn');
+    if(btn){
+      btn.addEventListener('pointerdown',prepareAudio,{capture:true,once:true});
+      btn.addEventListener('click',prepareAudio,{capture:true,once:true});
+    }
+  }catch(e){ console.warn('audio tune init failed',e); }
+})();
+</script>
