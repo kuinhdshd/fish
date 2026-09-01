@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'assets/musicraw/**'
+      - 'assets/musicb64/**'
       - '.github/workflows/assemble-clean-music.yml'
 
 permissions:
@@ -21,23 +21,23 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [ ! -d assets/musicraw ]; then
+          if [ ! -d assets/musicb64 ]; then
             echo "No clean music chunks to assemble"
             exit 0
           fi
-          cat assets/musicraw/part*.bin > assets/birthday_music_clean.mp3
-          test "$(wc -c < assets/birthday_music_clean.mp3)" = "868980"
-          echo "1b26e5e362051cd514486e7bd758f3e7bf4563c13f3f939391e4625387143297  assets/birthday_music_clean.mp3" | sha256sum -c -
-          rm -rf assets/musicraw
+          cat assets/musicb64/part*.b64 | base64 -d > assets/birthday_music_clean.mp3
+          test "$(wc -c < assets/birthday_music_clean.mp3)" = "434511"
+          echo "c9f1c8ea295b3a78991b43fae83d9190f7f13da6175d4b152d35d5743c01d19f  assets/birthday_music_clean.mp3" | sha256sum -c -
+          rm -rf assets/musicb64
       - name: Commit assembled MP3
         shell: bash
         run: |
-          if git diff --quiet -- assets/birthday_music_clean.mp3 assets/musicraw; then
+          if git diff --quiet -- assets/birthday_music_clean.mp3 assets/musicb64; then
             echo "Nothing to commit"
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A assets/birthday_music_clean.mp3 assets/musicraw
-          git commit -m "Assemble exact clean birthday music"
+          git add -A assets/birthday_music_clean.mp3 assets/musicb64
+          git commit -m "Assemble verified clean birthday music"
           git push
