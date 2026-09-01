@@ -3,12 +3,12 @@
 PHOTO_FILES.splice(3,5,'assets/new1.webp','assets/new2.webp','assets/new3.webp','assets/new4.webp','assets/new5.webp');
 const BIRTHDAY_MUSIC=new Audio();
 BIRTHDAY_MUSIC.loop=true;
-BIRTHDAY_MUSIC.volume=.78;
+BIRTHDAY_MUSIC.volume=1;
 BIRTHDAY_MUSIC.preload='auto';
 let BIRTHDAY_MUSIC_READY=false,BIRTHDAY_MUSIC_STARTED=false;
 const BIRTHDAY_START_BTN=document.getElementById('startBtn');
 if(BIRTHDAY_START_BTN){BIRTHDAY_START_BTN.style.pointerEvents='none';BIRTHDAY_START_BTN.style.opacity='.82';}
-(async()=>{try{const p=[];const names=['m0.txt','m1a.txt','m1b.txt','m2.txt','m3a1.txt','m3a2.txt','m3b.txt','m4.txt'];for(const n of names){const r=await fetch('assets/music15/'+n+'?v=3',{cache:'no-store'});if(!r.ok)throw new Error('music '+n);p.push(await r.text())}BIRTHDAY_MUSIC.src='data:audio/mpeg;base64,'+p.join('');BIRTHDAY_MUSIC.load();BIRTHDAY_MUSIC_READY=true}catch(e){console.warn('music load failed',e)}finally{if(BIRTHDAY_START_BTN){BIRTHDAY_START_BTN.style.pointerEvents='';BIRTHDAY_START_BTN.style.opacity='';}}})();
+(async()=>{try{const p=[];const names=['m0.txt','m1a.txt','m1b.txt','m2.txt','m3a1.txt','m3a2.txt','m3b.txt','m4.txt'];for(const n of names){const r=await fetch('assets/music15/'+n+'?v=4',{cache:'no-store'});if(!r.ok)throw new Error('music '+n);p.push(await r.text())}BIRTHDAY_MUSIC.src='data:audio/mpeg;base64,'+p.join('');BIRTHDAY_MUSIC.load();BIRTHDAY_MUSIC_READY=true}catch(e){console.warn('music load failed',e)}finally{if(BIRTHDAY_START_BTN){BIRTHDAY_START_BTN.style.pointerEvents='';BIRTHDAY_START_BTN.style.opacity='';}}})();
 const scenes = ['intro','titleScene','treeScene','photoScene','galaxyScene'].map(id => document.getElementById(id));
 const sceneDurations = { titleScene: 2200, treeScene: 5300, photoScene: 3200 };
 let timers = [];
